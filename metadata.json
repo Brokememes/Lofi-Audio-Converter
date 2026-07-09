@@ -1,0 +1,6 @@
+{
+  "name": "Lofi Audio Converter",
+  "description": "Upload audio files to apply lofi effects like low-pass filters, tape saturation, vinyl crackle, and pitch wobble with customizable vintage era presets.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
