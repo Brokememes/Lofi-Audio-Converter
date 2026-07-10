@@ -1,0 +1,206 @@
+{
+  "siteName": "Lofi Audio Converter",
+  "pages": [
+    {
+      "toolId": "lofi",
+      "path": "/",
+      "title": "Lofi Audio Converter — Free Online Lofi Music Maker (No Upload)",
+      "description": "Turn any song into warm vintage lofi in your browser. Tape wow & flutter, vinyl crackle, reverb and 90s cassette presets. Free and 100% private — your audio never leaves your device.",
+      "h1": "Free Online Lofi Converter",
+      "intro": "Transform any track into a warm, nostalgic lofi edit directly in your browser — no software to install, no account to create, and no upload to any server. The converter runs a real DSP signal chain built on the Web Audio API: analog tape wow and flutter, tube-style saturation, vinyl crackle, tape hiss, low-pass filtering and lush reverb. Pick a one-click preset like Soft Study Lofi or 90s Bedroom Tape, or open the mixing console and shape every knob yourself, then export a high-quality WAV file that is ready for YouTube, TikTok or your next study playlist.",
+      "steps": [
+        "Click SELECT FILE or drag and drop an MP3, WAV, FLAC or AAC file onto the cassette deck.",
+        "Choose a lofi preset, or fine-tune the filter, saturation, wow, crackle, hiss and reverb knobs yourself.",
+        "Press play to preview the processed sound and A/B compare it with the original at any time.",
+        "Click EXPORT LOFI to render and download your finished lofi track as a WAV file."
+      ],
+      "faq": [
+        { "q": "How does the online lofi converter work?", "a": "The app uses your browser's built-in Web Audio API to run a chain of digital signal processors — tape speed wobble (wow and flutter), waveshaper saturation, procedural vinyl crackle and hiss, filtering and convolution reverb. Everything is computed locally on your device, so conversion is instant and your file is never uploaded anywhere." },
+        { "q": "Is the lofi converter really free?", "a": "Yes. Every tool on this site is completely free, with no signup, no watermarks and no export limits." },
+        { "q": "Is my audio private?", "a": "Completely. Your file is processed inside your browser's memory and never leaves your device. There is no server upload, which is also why processing starts instantly." },
+        { "q": "Can I use the lofi versions commercially?", "a": "The effects and processing are royalty-free. However, you still need the rights to the original song you are converting — for music you wrote or royalty-free tracks you are fully covered." },
+        { "q": "What audio formats are supported?", "a": "MP3, WAV, FLAC and AAC files are supported for input. Exports are rendered as high-quality 16-bit WAV files." }
+      ]
+    },
+    {
+      "toolId": "vocal_remover",
+      "path": "/vocal-remover/",
+      "title": "Free Vocal Remover Online — Make Instrumentals (No Upload)",
+      "description": "Remove vocals from any song free, right in your browser. Create karaoke instrumentals with phase-cancellation DSP. No upload, no signup — audio stays 100% private on your device.",
+      "h1": "Vocal Remover — Free Online Instrumental Maker",
+      "intro": "Strip the vocals out of a song and keep the instrumental — perfect for karaoke nights, remixes, samples and practice tracks. Unlike most vocal removers, this one never uploads your music to a server: the separation runs entirely inside your browser using center-channel phase cancellation DSP, so results appear in seconds and your files stay private. Load a track, adjust the removal intensity, preview the instrumental, and export when it sounds right.",
+      "steps": [
+        "Open the Vocal Remover and load an MP3, WAV, FLAC or AAC file.",
+        "Let the tool analyze the stereo field and cancel the center channel where vocals usually sit.",
+        "Preview the instrumental and fine-tune the removal strength for the cleanest result.",
+        "Export the vocal-free version as a high-quality audio file."
+      ],
+      "faq": [
+        { "q": "How do I remove vocals from a song for free?", "a": "Load your song into the tool above — it isolates and cancels the center channel where lead vocals normally sit, leaving the instrumental. It is free, unlimited and runs in your browser." },
+        { "q": "Does it upload my music to a server?", "a": "No. All processing happens locally in your browser with the Web Audio API. Your song never leaves your device." },
+        { "q": "How clean are the results?", "a": "Center-channel cancellation works best on standard stereo mixes where vocals are panned center. Results vary by song — heavily processed or mono tracks keep more vocal residue." },
+        { "q": "Can I make karaoke tracks with this?", "a": "Yes — removing the lead vocal while keeping the instrumental is exactly how karaoke versions are made. Export the result and add it to any karaoke player." }
+      ]
+    },
+    {
+      "toolId": "pitcher",
+      "path": "/pitch-and-tempo/",
+      "title": "Pitch Shifter & Tempo Changer Online — Free, No Upload",
+      "description": "Change the pitch or speed of any song online free. Shift semitones, slow down or speed up audio for practice, nightcore or daycore — all in your browser, no upload.",
+      "h1": "Pitch & Tempo Changer — Shift Key and Speed Online",
+      "intro": "Raise or lower the key of a song in precise semitone steps, or change its speed without touching your DAW. Musicians use it to transpose backing tracks into a comfortable singing key, producers use it to create nightcore and daycore edits, and learners slow down fast passages to practice them note by note. Processing is instant because it happens on your device — nothing is uploaded, and the export is yours in one click.",
+      "steps": [
+        "Load your audio file into the Pitch & Tempo tool.",
+        "Drag the pitch slider up or down in semitones to change the key.",
+        "Adjust the tempo control to speed up or slow down playback.",
+        "Preview the result in real time, then export the shifted version."
+      ],
+      "faq": [
+        { "q": "Can I change pitch without changing speed?", "a": "Yes — the pitch and tempo controls are independent, so you can transpose a song's key while keeping its original tempo, or change speed while keeping pitch." },
+        { "q": "How do I make a nightcore edit?", "a": "Raise the pitch a few semitones and increase the tempo to around 120–130% — that bright, fast sound is the classic nightcore recipe. The reverse (lower and slower) gives you daycore." },
+        { "q": "What is a semitone?", "a": "A semitone is the smallest step in Western music — the distance between two adjacent piano keys. Shifting +2 semitones moves a song from C major to D major, for example." },
+        { "q": "Is this free and private?", "a": "Yes. Like every tool on this site, pitch shifting runs locally in your browser — free, no signup, and your audio is never uploaded." }
+      ]
+    },
+    {
+      "toolId": "key_bpm",
+      "path": "/bpm-key-finder/",
+      "title": "BPM & Song Key Finder Online — Free Music Analyzer",
+      "description": "Find the BPM (tempo) and musical key of any song free. Drop in an audio file and get instant beat and key detection in your browser — no upload, no signup.",
+      "h1": "Song Key & BPM Finder",
+      "intro": "Instantly detect the tempo (BPM) and musical key of any track. DJs use it to build harmonic mixes, producers use it to match samples and acapellas to their projects, and musicians use it to learn songs faster. The analyzer runs autocorrelation and frequency analysis directly in your browser — drop a file in and the tempo and root key appear in seconds, with your audio never leaving your device.",
+      "steps": [
+        "Open the Key & BPM Finder and load any MP3, WAV, FLAC or AAC file.",
+        "Wait a moment while the beat and pitch detection algorithms scan the track.",
+        "Read the detected BPM and musical key from the analyzer display.",
+        "Use the values to mix, remix, or practice — or analyze another track."
+      ],
+      "faq": [
+        { "q": "How do I find the BPM of a song?", "a": "Load the song into the analyzer above. It detects repeating energy peaks in the waveform (the beats) and calculates how many occur per minute — that number is the BPM." },
+        { "q": "What is a song key and why does it matter?", "a": "The key is the tonal center of a song — the scale it is built around, like A minor or F major. Knowing it lets DJs mix tracks harmonically and helps producers pick samples that fit together." },
+        { "q": "How accurate is the detection?", "a": "Very reliable for most rhythmic music. Tracks with rubato, tempo changes or very sparse percussion can be harder to pin down — double-check unusual results by ear." },
+        { "q": "Is my file uploaded for analysis?", "a": "No — analysis runs entirely in your browser using the Web Audio API. Nothing is sent to any server." }
+      ]
+    },
+    {
+      "toolId": "cutter",
+      "path": "/audio-cutter/",
+      "title": "Audio Cutter Online — Trim MP3 & WAV Free (No Upload)",
+      "description": "Cut and trim audio files online free. Slice ringtones, remove silence, or extract the best part of a song — right in your browser with no upload and no watermark.",
+      "h1": "Audio Cutter — Trim Songs Online",
+      "intro": "Cut a song down to exactly the section you want — a ringtone, a sample, an intro for your podcast, or a clip for social media. Load a track, drag the start and end markers over the waveform, preview your selection, and export the trimmed piece. Because the cutting happens locally in your browser, even long files open instantly and your audio stays completely private.",
+      "steps": [
+        "Load the audio file you want to trim into the Audio Cutter.",
+        "Drag the start and end handles to select the exact region to keep.",
+        "Preview the selection to check your cut points.",
+        "Export the trimmed clip as a new audio file."
+      ],
+      "faq": [
+        { "q": "How do I cut an MP3 online?", "a": "Load the MP3 into the cutter above, drag the selection handles around the part you want, preview it, and export. The whole process takes under a minute." },
+        { "q": "Can I make a ringtone with this?", "a": "Yes — trim your favorite 20–30 second section and export it. You can then transfer it to your phone as a custom ringtone." },
+        { "q": "Does cutting reduce audio quality?", "a": "The tool decodes your file and exports the selected region at high quality. There is no watermark and no artificial quality cap." },
+        { "q": "Is there a file size or length limit?", "a": "No hard limit — because processing is local, capacity depends on your device's memory. Typical songs and even hour-long recordings work fine." }
+      ]
+    },
+    {
+      "toolId": "joiner",
+      "path": "/audio-joiner/",
+      "title": "Audio Joiner Online — Merge MP3 Files Free (No Upload)",
+      "description": "Merge multiple songs or audio clips into one file free. Combine MP3, WAV, FLAC and AAC tracks in your browser — reorder, join and export with no upload or signup.",
+      "h1": "Audio Joiner — Merge Songs Into One File",
+      "intro": "Combine several audio files into a single continuous track — stitch podcast segments together, build a workout mix, merge voice memos, or join song parts into one file. Add as many clips as you need, arrange them in the right order, and export the merged result. As with every tool here, the joining happens inside your browser, so large files merge quickly and nothing is uploaded.",
+      "steps": [
+        "Open the Audio Joiner and add two or more audio files.",
+        "Arrange the clips into the order you want them to play.",
+        "Preview the combined sequence from start to finish.",
+        "Export the merged audio as a single file."
+      ],
+      "faq": [
+        { "q": "How do I merge two MP3 files into one?", "a": "Add both files to the joiner above, put them in the right order, and click export — you get one continuous audio file." },
+        { "q": "Can I mix different formats, like MP3 and WAV?", "a": "Yes. Each file is decoded to raw audio before joining, so you can freely combine MP3, WAV, FLAC and AAC clips in one project." },
+        { "q": "Is there a limit on how many files I can join?", "a": "No fixed limit — you can add as many clips as your device's memory allows, which covers typical playlists and podcast edits easily." },
+        { "q": "Do my files get uploaded?", "a": "No. Files are read and merged locally in your browser and never sent to a server." }
+      ]
+    },
+    {
+      "toolId": "recorder",
+      "path": "/voice-recorder/",
+      "title": "Online Voice Recorder — Free Recording Studio (No Upload)",
+      "description": "Record your voice or instrument free in your browser. A simple online recording studio with instant playback and download — no installation, no account, fully private.",
+      "h1": "Online Voice Recorder & Recording Studio",
+      "intro": "Record vocals, voiceovers, instruments, podcasts or quick memos straight from your microphone — no software installation and no account needed. Hit record, watch the live level meter, stop when you are done, then play it back and download the take. Recordings are captured and stored only in your browser session, so nothing is ever uploaded and your voice stays private.",
+      "steps": [
+        "Open the Recording Studio and allow microphone access when your browser asks.",
+        "Press the record button and speak, sing or play — the meter shows your live level.",
+        "Press stop, then play back the take to check it.",
+        "Download the recording, or record another take."
+      ],
+      "faq": [
+        { "q": "How do I record my voice online for free?", "a": "Open the recorder above, allow microphone access, and press record. When you stop, you can immediately play back and download the recording — free with no time limits." },
+        { "q": "Why does the browser ask for microphone permission?", "a": "Browsers require your explicit permission before any website can access the microphone. The audio is captured locally and never leaves your device." },
+        { "q": "Where are my recordings saved?", "a": "Recordings live in your browser's memory until you download them. Nothing is stored on a server — if you close the tab without downloading, the take is gone." },
+        { "q": "Can I record an instrument or system audio?", "a": "Anything your selected microphone or input device can pick up can be recorded — voice, acoustic instruments, or a line-in signal via an audio interface." }
+      ]
+    },
+    {
+      "toolId": "slowed_reverb",
+      "path": "/slowed-and-reverb/",
+      "title": "Slowed and Reverb Maker Online — Free Slowed + Reverb Generator",
+      "description": "Make slowed and reverb edits of any song free. Adjust speed and dreamy reverb in your browser and export in seconds — no upload, no watermark, 100% private.",
+      "h1": "Slowed + Reverb Maker",
+      "intro": "Create the dreamy, underwater 'slowed + reverb' sound that dominates TikTok, YouTube and late-night playlists. Load any song, pull the speed down to the sweet spot (most edits sit around 80–85%), add spacious reverb, and preview the vibe in real time. When it feels right, export the edit as a high-quality file. Everything renders locally in your browser, so there is no queue, no upload and no watermark.",
+      "steps": [
+        "Load the song you want to edit into the Slowed & Reverb tool.",
+        "Lower the speed control — around 80–85% gives the classic slowed sound.",
+        "Dial in the reverb amount and size until the mix feels spacious and dreamy.",
+        "Preview the result, then export your slowed + reverb edit."
+      ],
+      "faq": [
+        { "q": "How do I make a slowed and reverb edit?", "a": "Slow the track to roughly 80–85% of its original speed and add generous reverb — the tool above does both with two sliders and exports the result in seconds." },
+        { "q": "What speed is 'slowed and reverb' usually?", "a": "Most popular edits slow the song to between 75% and 90% of the original tempo, with 80–85% being the sweet spot for the classic sound." },
+        { "q": "Can I upload my edits to YouTube or TikTok?", "a": "The effect itself is royalty-free, but the original song's copyright still applies — use music you have rights to, or expect platform content-ID matching on commercial tracks." },
+        { "q": "Why does slowing a song change its pitch?", "a": "Classic slowed edits lower pitch together with speed — that deep, heavy character is part of the aesthetic. It mimics playing a record or tape below its normal speed." }
+      ]
+    },
+    {
+      "toolId": "spatial_8d",
+      "path": "/8d-audio/",
+      "title": "8D Audio Converter Online — Free 8D Music Maker (Headphones)",
+      "description": "Convert any song to 8D audio free in your browser. Sound orbits around your head using spatial panning — adjust rotation speed and export. No upload, headphones recommended.",
+      "h1": "8D Audio Converter & Spatializer",
+      "intro": "Turn any track into immersive 8D audio — the effect where music seems to orbit slowly around your head. Put on headphones, load a song, and the spatializer sweeps the sound through 360° using automated panning driven by low-frequency oscillators. You control the rotation speed and depth, so the effect can be a subtle drift or a full carousel. Export the result and share the experience; processing is local, free and private.",
+      "steps": [
+        "Put on headphones — the 8D effect only works with stereo separation.",
+        "Load your song into the 8D Audio Spatializer.",
+        "Set the rotation speed and depth to taste, from slow drift to fast orbit.",
+        "Preview the spatial effect, then export your 8D version."
+      ],
+      "faq": [
+        { "q": "What is 8D audio?", "a": "8D audio is a production effect that automates the stereo pan of a song so the sound appears to circle around your head. It is created with spatial panning and subtle reverb, not a special file format." },
+        { "q": "Do I need headphones for 8D audio?", "a": "Yes — the illusion depends on distinct left and right channels reaching each ear separately. On speakers the effect largely disappears." },
+        { "q": "Is 8D audio safe to listen to?", "a": "Yes, it is ordinary stereo audio with moving panning. Listen at the same sensible volumes you would use for any music." },
+        { "q": "Can I convert any song to 8D?", "a": "Any stereo track works. Songs with clear instrument separation and steady energy tend to produce the most convincing orbital effect." }
+      ]
+    },
+    {
+      "toolId": "audio_to_video",
+      "path": "/audio-to-video/",
+      "title": "Audio to Video Converter — Free Music Visualizer to MP4",
+      "description": "Turn songs into videos with reactive visualizers free. Retro sunsets, spinning vinyl and neon waveforms rendered in your browser — export HD video for YouTube and TikTok.",
+      "h1": "Audio to Video Converter with Reactive Visualizer",
+      "intro": "YouTube, TikTok and Instagram all want video — this tool turns your audio into one. Pick a reactive visualizer scene (retro sunset, spinning vinyl, cyber grid or neon waveform), add your title text, and the canvas animates in sync with the music. Hit export and the tool records a full-length HD video file of your track, rendered entirely in your browser. Perfect for lofi channels, music promos, podcast clips and lyric-free uploads.",
+      "steps": [
+        "Load the audio track you want to turn into a video.",
+        "Choose a visualizer style and customize the on-screen labels.",
+        "Preview the animation reacting to your music in real time.",
+        "Export the finished HD video, ready for YouTube, TikTok or Reels."
+      ],
+      "faq": [
+        { "q": "How do I turn an MP3 into a video for YouTube?", "a": "Load the MP3 above, pick a visualizer scene, and export — you get a video file of the full song with animated visuals, ready to upload to YouTube." },
+        { "q": "What video format do I get?", "a": "The video is recorded with your browser's native encoder — typically WebM or MP4 depending on the browser. Both upload fine to YouTube and most social platforms." },
+        { "q": "Do the visuals react to the music?", "a": "Yes — the scenes are driven by live frequency analysis of your track, so bars, waves and glows move with the beat." },
+        { "q": "Is rendering done on my computer?", "a": "Yes, the video is composed and encoded locally in your browser. Longer tracks simply take longer to record — nothing is uploaded or queued on a server." }
+      ]
+    }
+  ]
+}

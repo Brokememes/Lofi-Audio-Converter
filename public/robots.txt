@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lofi-audio-converter.pages.dev/sitemap.xml

@@ -38,6 +38,7 @@ import {
   calculatePitchCorrectionCents, 
   getNoteName 
 } from './audioEngine';
+import { toolIdFromPath, pathFromToolId, applyDocumentMeta, navigateToTool, SEO_PAGES, ToolId } from './seo/router';
 import { TapeReel } from './components/TapeReel';
 import { VUMeter } from './components/VUMeter';
 import VocalRemover from './components/VocalRemover';
@@ -178,7 +179,24 @@ export default function App() {
   });
 
   const [activeTab, setActiveTab] = useState<'presets' | 'knobs'>('presets');
-  const [currentTool, setCurrentTool] = useState<'lofi' | 'vocal_remover' | 'pitcher' | 'key_bpm' | 'cutter' | 'joiner' | 'recorder' | 'slowed_reverb' | 'spatial_8d' | 'audio_to_video'>('lofi');
+  const [currentTool, setCurrentTool] = useState<ToolId>(() => toolIdFromPath(window.location.pathname));
+
+  // URL-driven tool selection: keeps each tool on its own path for SEO and shareable links
+  const selectTool = (toolId: ToolId) => {
+    navigateToTool(toolId);
+    setCurrentTool(toolId);
+  };
+
+  useEffect(() => {
+    applyDocumentMeta(toolIdFromPath(window.location.pathname));
+    const handlePopState = () => {
+      const toolId = toolIdFromPath(window.location.pathname);
+      applyDocumentMeta(toolId);
+      setCurrentTool(toolId);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [presetSearchQuery, setPresetSearchQuery] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -592,7 +610,7 @@ export default function App() {
           </span>
         </div>
         <button
-          onClick={() => setCurrentTool('lofi')}
+          onClick={() => selectTool('lofi')}
           className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold tracking-wider transition-all duration-150 flex items-center gap-1.5 border ${
             currentTool === 'lofi'
               ? 'bg-amber-600 text-[#141210] border-amber-500 shadow-md'
@@ -603,7 +621,7 @@ export default function App() {
           <span>LOFI GENERATOR</span>
         </button>
         <button
-          onClick={() => setCurrentTool('vocal_remover')}
+          onClick={() => selectTool('vocal_remover')}
           className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold tracking-wider transition-all duration-150 flex items-center gap-1.5 border ${
             currentTool === 'vocal_remover'
               ? 'bg-amber-600 text-[#141210] border-amber-500 shadow-md'
@@ -614,7 +632,7 @@ export default function App() {
           <span>VOCAL REMOVER</span>
         </button>
         <button
-          onClick={() => setCurrentTool('pitcher')}
+          onClick={() => selectTool('pitcher')}
           className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold tracking-wider transition-all duration-150 flex items-center gap-1.5 border ${
             currentTool === 'pitcher'
               ? 'bg-amber-600 text-[#141210] border-amber-500 shadow-md'
@@ -625,7 +643,7 @@ export default function App() {
           <span>PITCH & TEMPO</span>
         </button>
         <button
-          onClick={() => setCurrentTool('key_bpm')}
+          onClick={() => selectTool('key_bpm')}
           className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold tracking-wider transition-all duration-150 flex items-center gap-1.5 border ${
             currentTool === 'key_bpm'
               ? 'bg-amber-600 text-[#141210] border-amber-500 shadow-md'
@@ -636,7 +654,7 @@ export default function App() {
           <span>KEY & BPM FINDER</span>
         </button>
         <button
-          onClick={() => setCurrentTool('cutter')}
+          onClick={() => selectTool('cutter')}
           className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold tracking-wider transition-all duration-150 flex items-center gap-1.5 border ${
             currentTool === 'cutter'
               ? 'bg-amber-600 text-[#141210] border-amber-500 shadow-md'
@@ -647,7 +665,7 @@ export default function App() {
           <span>AUDIO CUTTER</span>
         </button>
         <button
-          onClick={() => setCurrentTool('joiner')}
+          onClick={() => selectTool('joiner')}
           className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold tracking-wider transition-all duration-150 flex items-center gap-1.5 border ${
             currentTool === 'joiner'
               ? 'bg-amber-600 text-[#141210] border-amber-500 shadow-md'
@@ -658,7 +676,7 @@ export default function App() {
           <span>AUDIO JOINER</span>
         </button>
         <button
-          onClick={() => setCurrentTool('recorder')}
+          onClick={() => selectTool('recorder')}
           className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold tracking-wider transition-all duration-150 flex items-center gap-1.5 border ${
             currentTool === 'recorder'
               ? 'bg-amber-600 text-[#141210] border-amber-500 shadow-md'
@@ -669,7 +687,7 @@ export default function App() {
           <span>RECORDING STUDIO</span>
         </button>
         <button
-          onClick={() => setCurrentTool('slowed_reverb')}
+          onClick={() => selectTool('slowed_reverb')}
           className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold tracking-wider transition-all duration-150 flex items-center gap-1.5 border ${
             currentTool === 'slowed_reverb'
               ? 'bg-amber-600 text-[#141210] border-amber-500 shadow-md'
@@ -680,7 +698,7 @@ export default function App() {
           <span>SLOWED & REVERB</span>
         </button>
         <button
-          onClick={() => setCurrentTool('spatial_8d')}
+          onClick={() => selectTool('spatial_8d')}
           className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold tracking-wider transition-all duration-150 flex items-center gap-1.5 border ${
             currentTool === 'spatial_8d'
               ? 'bg-amber-600 text-[#141210] border-amber-500 shadow-md'
@@ -691,7 +709,7 @@ export default function App() {
           <span>8D AUDIO SPATIALIZER</span>
         </button>
         <button
-          onClick={() => setCurrentTool('audio_to_video')}
+          onClick={() => selectTool('audio_to_video')}
           className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold tracking-wider transition-all duration-150 flex items-center gap-1.5 border ${
             currentTool === 'audio_to_video'
               ? 'bg-amber-600 text-[#141210] border-amber-500 shadow-md'
@@ -1837,6 +1855,32 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* ALL TOOLS LINK MAP (crawlable internal links) */}
+      <nav aria-label="All audio tools" className="border-t border-[#2d2822] bg-[#12100e] px-6 py-5">
+        <div className="max-w-7xl mx-auto space-y-3">
+          <h2 className="text-[10px] font-mono font-bold tracking-widest text-[#8e816d] uppercase">All Free Audio Tools</h2>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {SEO_PAGES.map(page => (
+              <a
+                key={page.toolId}
+                href={page.path}
+                className={`text-[11px] font-mono transition ${
+                  currentTool === page.toolId
+                    ? 'text-amber-500 font-bold'
+                    : 'text-[#a39785] hover:text-white'
+                }`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  selectTool(page.toolId as ToolId);
+                }}
+              >
+                {page.h1}
+              </a>
+            ))}
+          </div>
+        </div>
+      </nav>
 
       {/* FOOTER */}
       <footer className="border-t border-[#2d2822] bg-[#100e0d] px-6 py-4 flex flex-col md:flex-row justify-between items-center text-xs text-[#746957] font-mono z-10">
