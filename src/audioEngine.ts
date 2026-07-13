@@ -534,6 +534,10 @@ export class LofiAudioManager {
   // Vocal Gender / Formant Shifter options
   private vocalMode: 'off' | 'female-to-male' | 'male-to-female' = 'off';
   private vocalPitchShift: number = 0;
+  // When true, the in-chain pitch shifter counteracts the preset's semitone
+  // drop so the singer keeps their original voice while tempo still slows —
+  // prevents female vocals from reading as male on pitched-down presets.
+  private preserveVocalPitch: boolean = false;
   private vocalLowPeakingNode: BiquadFilterNode | null = null;
   private vocalHighPeakingNode: BiquadFilterNode | null = null;
   private vocalAirShelfNode: BiquadFilterNode | null = null;
@@ -642,12 +646,25 @@ export class LofiAudioManager {
     }
   }
 
+  private getVocalShifterPitch(): number {
+    const genderShift = this.vocalMode === 'off' ? 0 : this.vocalPitchShift;
+    const preserveShift = this.preserveVocalPitch ? -this.currentSemitones : 0;
+    return genderShift + preserveShift;
+  }
+
+  public setPreserveVocalPitch(enabled: boolean) {
+    this.preserveVocalPitch = enabled;
+    if (this.vocalPitchShifter) {
+      this.vocalPitchShifter.setPitch(this.getVocalShifterPitch());
+    }
+  }
+
   public setVocalShifter(mode: 'off' | 'female-to-male' | 'male-to-female', pitchShift: number) {
     this.vocalMode = mode;
     this.vocalPitchShift = pitchShift;
 
     if (this.vocalPitchShifter) {
-      this.vocalPitchShifter.setPitch(mode === 'off' ? 0 : pitchShift);
+      this.vocalPitchShifter.setPitch(this.getVocalShifterPitch());
     }
 
     if (this.sourceNode && this.ctx) {
@@ -823,7 +840,7 @@ export class LofiAudioManager {
 
     // Connect Source Graph
     this.vocalPitchShifter = new TimeDomainPitchShifter(this.ctx);
-    this.vocalPitchShifter.setPitch(this.vocalMode === 'off' ? 0 : this.vocalPitchShift);
+    this.vocalPitchShifter.setPitch(this.getVocalShifterPitch());
 
     this.inputGainNode = this.ctx.createGain();
     this.inputGainNode.gain.value = this.inputGain;
@@ -1133,6 +1150,9 @@ export class LofiAudioManager {
           const finalRate = this.getPlaybackRate(value);
           this.sourceNode.playbackRate.setTargetAtTime(finalRate, this.ctx.currentTime, 0.1);
         }
+        if (this.vocalPitchShifter) {
+          this.vocalPitchShifter.setPitch(this.getVocalShifterPitch());
+        }
         break;
       case 'filterCutoff':
         if (this.filterNode) {
@@ -1294,7 +1314,8 @@ export async function renderLofiAudio(
   pitchCorrectionEnabled: boolean = false,
   pitchCorrectionCents: number = 0,
   vocalMode: 'off' | 'female-to-male' | 'male-to-female' = 'off',
-  vocalPitchShift: number = 0
+  vocalPitchShift: number = 0,
+  preserveVocalPitch: boolean = false
 ): Promise<Blob> {
   const sampleRate = buffer.sampleRate;
   const totalSemitones = preset.semitones;
@@ -1463,10 +1484,15 @@ export async function renderLofiAudio(
   vLow.connect(vHigh);
   vHigh.connect(vAir);
 
+  // Combined shift: gender transform plus preservation of the singer's
+  // original pitch against the preset's semitone drop (mirrors live preview).
+  const genderShift = vocalMode === 'off' ? 0 : vocalPitchShift;
+  const totalVocalShift = genderShift + (preserveVocalPitch ? -preset.semitones : 0);
+
   let vocalOutputNode: AudioNode = vAir;
-  if (vocalMode !== 'off' && vocalPitchShift !== 0) {
+  if (totalVocalShift !== 0) {
     const pitchShifter = new TimeDomainPitchShifter(offlineCtx);
-    pitchShifter.setPitch(vocalPitchShift);
+    pitchShifter.setPitch(totalVocalShift);
     vAir.connect(pitchShifter.input);
     vocalOutputNode = pitchShifter.output;
   }

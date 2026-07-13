@@ -213,6 +213,9 @@ export default function App() {
   const [vocalMode, setVocalMode] = useState<'off' | 'female-to-male' | 'male-to-female'>('off');
   const [vocalPitchShift, setVocalPitchShift] = useState<number>(0);
   const [isBypassed, setIsBypassed] = useState<boolean>(false);
+  // Counteracts the preset's pitch drop so the singer keeps their real voice
+  // (female vocals stay female) while the lofi tempo slowdown is preserved.
+  const [preserveVocalPitch, setPreserveVocalPitch] = useState<boolean>(true);
 
   const handleBypassChange = (bypassed: boolean) => {
     setIsBypassed(bypassed);
@@ -262,6 +265,10 @@ export default function App() {
       audioManagerRef.current.setVocalShifter(vocalMode, vocalPitchShift);
     }
   }, [vocalMode, vocalPitchShift]);
+
+  useEffect(() => {
+    audioManagerRef.current?.setPreserveVocalPitch(preserveVocalPitch);
+  }, [preserveVocalPitch]);
 
   const handleVocalModeChange = (mode: 'off' | 'female-to-male' | 'male-to-female') => {
     setVocalMode(mode);
@@ -498,7 +505,8 @@ export default function App() {
         pitchCorrectionEnabled,
         pitchCorrectionCents,
         vocalMode,
-        vocalPitchShift
+        vocalPitchShift,
+        preserveVocalPitch
       );
 
       // Prompt automatic file download
@@ -973,6 +981,20 @@ export default function App() {
               </div>
             ) : (
               <div className="space-y-4">
+                <button
+                  onClick={() => setPreserveVocalPitch(!preserveVocalPitch)}
+                  className={`w-full py-2.5 px-3 rounded-lg text-[11px] font-mono font-bold border transition duration-150 flex items-center justify-between ${
+                    preserveVocalPitch
+                      ? 'bg-emerald-600/20 border-emerald-500/40 text-emerald-400 shadow-sm'
+                      : 'bg-[#11100e] border-[#1d1915] text-[#8e816d] hover:border-[#2a241f]'
+                  }`}
+                >
+                  <span>KEEP SINGER'S ORIGINAL VOICE</span>
+                  <span className={`w-2 h-2 rounded-full ${preserveVocalPitch ? 'bg-emerald-400 animate-pulse' : 'bg-[#3c362e]'}`} />
+                </button>
+                <p className="text-[10px] text-[#746957] leading-normal font-sans -mt-2">
+                  Lofi presets slow the tape slightly, which drags vocals deeper — a female singer can start sounding male. Keep this ON to restore the singer's real pitch while the lofi slowdown stays.
+                </p>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     onClick={() => handleVocalModeChange('off')}

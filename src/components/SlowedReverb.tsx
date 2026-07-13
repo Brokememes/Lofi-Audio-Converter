@@ -65,11 +65,19 @@ export default function SlowedReverb() {
   const [highCut, setHighCut] = useState(4000); // 1000Hz to 20000Hz
   const [bassBoost, setBassBoost] = useState(6); // 0dB to 15dB
   const [volume, setVolume] = useState(80);
-  // Restores some of the pitch/formant drop that slowing playback causes, so
-  // vocals (especially female ones) don't read as a different gender. 0% =
-  // full vari-speed drop (classic tape-slowdown character), 100% = fully
-  // corrected pitch (keeps only the tempo change).
-  const [vocalPitchLift, setVocalPitchLift] = useState(50);
+  // Restores the pitch/formant drop that slowing playback causes, so vocals
+  // don't read as a different gender. 100% = fully corrected pitch (singer
+  // sounds like themselves, only tempo is slowed), 0% = full vari-speed drop
+  // (classic deep tape-slowdown character).
+  const [vocalPitchLift, setVocalPitchLift] = useState(100);
+  const [voiceType, setVoiceType] = useState<'female' | 'male' | 'custom'>('female');
+
+  const selectVoiceType = (type: 'female' | 'male') => {
+    setVoiceType(type);
+    // Female: fully restore pitch so she still sounds like herself.
+    // Male: keep the full deep drop — the classic slowed sound suits male vocals.
+    setVocalPitchLift(type === 'female' ? 100 : 0);
+  };
 
   // Audio nodes and context refs
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -825,32 +833,60 @@ export default function SlowedReverb() {
               </div>
             </div>
 
-            {/* VOCAL PITCH LIFT SLIDER */}
+            {/* SINGER'S VOICE SELECTOR + PITCH LIFT */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <label className="text-xs font-mono font-bold text-white flex items-center gap-1">
                   <UserRound className="w-3.5 h-3.5 text-amber-500" />
-                  VOCAL PITCH LIFT
+                  SINGER'S VOICE
                 </label>
                 <span className="text-xs font-mono text-amber-500 font-bold bg-amber-950/40 border border-amber-900/30 px-2 py-0.5 rounded">
-                  {vocalPitchLift}%
+                  Pitch lift: {vocalPitchLift}%
                 </span>
               </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => selectVoiceType('female')}
+                  className={`py-2.5 px-2 rounded-lg text-[11px] font-mono font-bold border transition duration-150 ${
+                    voiceType === 'female'
+                      ? 'bg-pink-600/20 border-pink-500/40 text-pink-300 shadow-sm'
+                      : 'bg-[#141210] border-[#26211d] text-[#8c7f6d] hover:border-[#3d342b]'
+                  }`}
+                >
+                  FEMALE VOICE
+                  <span className="block text-[9px] font-normal mt-0.5 opacity-80">keeps her real voice</span>
+                </button>
+                <button
+                  onClick={() => selectVoiceType('male')}
+                  className={`py-2.5 px-2 rounded-lg text-[11px] font-mono font-bold border transition duration-150 ${
+                    voiceType === 'male'
+                      ? 'bg-amber-600/20 border-amber-500/40 text-amber-400 shadow-sm'
+                      : 'bg-[#141210] border-[#26211d] text-[#8c7f6d] hover:border-[#3d342b]'
+                  }`}
+                >
+                  MALE VOICE
+                  <span className="block text-[9px] font-normal mt-0.5 opacity-80">classic deep slowed</span>
+                </button>
+              </div>
+
               <input
                 type="range"
                 min="0"
                 max="100"
                 value={vocalPitchLift}
-                onChange={(e) => setVocalPitchLift(Number(e.target.value))}
+                onChange={(e) => {
+                  setVocalPitchLift(Number(e.target.value));
+                  setVoiceType('custom');
+                }}
                 className="w-full accent-amber-600 bg-[#141210] h-1.5 rounded-full appearance-none cursor-pointer"
               />
               <div className="flex justify-between text-[10px] text-[#8c7f6d] font-mono">
-                <span>0% (Raw Tape Drop)</span>
-                <span>50% (Balanced)</span>
-                <span>100% (Vocal Preserved)</span>
+                <span>0% (Deep Tape Drop)</span>
+                <span>100% (Original Voice)</span>
               </div>
               <p className="text-[10px] text-[#746957] leading-normal font-sans">
-                Slowing playback drops pitch and vocal character together — this can make a voice read as a different gender. Raise this to restore some of that character without undoing the slowed tempo.
+                Slowing a song drags the voice down with it — a female singer can end up sounding male. Pick who's singing: FEMALE restores her real voice while the tempo stays slowed; MALE keeps the classic deep drop.
               </p>
             </div>
 
