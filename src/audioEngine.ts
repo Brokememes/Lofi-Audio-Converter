@@ -54,14 +54,81 @@ export function createCrackleBuffer(audioCtx: BaseAudioContext, duration: number
 export function getSaturationCurve(drive: number): Float32Array {
   const n_samples = 44100;
   const curve = new Float32Array(n_samples);
-  // drive ranges from 0 to 100
-  const factor = 1 + (drive / 100) * 12; // amplify drive smoothly
+  // drive ranges from 0 to 100. Factor capped at 6 (was 12) so the curve stays
+  // musical tape warmth instead of folding into fuzz-pedal hard clipping.
+  const factor = 1 + (drive / 100) * 5;
   for (let i = 0; i < n_samples; i++) {
     const x = (i * 2) / n_samples - 1;
     // Saturation using hyperbolic tangent (natural soft compression)
     curve[i] = Math.tanh(x * factor) / Math.tanh(factor);
   }
   return curve;
+}
+
+// Quantizes amplitude into a fixed number of steps to simulate low bit-depth
+// hardware (cassette decks, 8-bit samplers). At bitDepth=16 this is transparent.
+export function getBitcrushCurve(bitDepth: number): Float32Array {
+  const steps = Math.pow(2, Math.max(2, Math.min(16, bitDepth)));
+  const n_samples = 44100;
+  const curve = new Float32Array(n_samples);
+  for (let i = 0; i < n_samples; i++) {
+    const x = (i * 2) / n_samples - 1;
+    curve[i] = Math.round((x * steps) / 2) / (steps / 2);
+  }
+  return curve;
+}
+
+export interface LoudnessInfo {
+  peak: number;
+  rms: number;
+}
+
+// Strides through the full buffer (not just the intro) so a quiet outro or a
+// hot chorus can't skew the reading — cost stays bounded on long files.
+export function analyzeLoudness(buffer: AudioBuffer): LoudnessInfo {
+  const numChannels = buffer.numberOfChannels;
+  const maxSamplesPerChannel = 500000;
+  let peak = 0;
+  let sumSquares = 0;
+  let count = 0;
+
+  for (let c = 0; c < numChannels; c++) {
+    const data = buffer.getChannelData(c);
+    const stride = Math.max(1, Math.floor(data.length / maxSamplesPerChannel));
+    for (let i = 0; i < data.length; i += stride) {
+      const value = data[i];
+      const absValue = Math.abs(value);
+      if (absValue > peak) peak = absValue;
+      sumSquares += value * value;
+      count++;
+    }
+  }
+
+  const rms = count > 0 ? Math.sqrt(sumSquares / count) : 0;
+  return { peak, rms };
+}
+
+const TARGET_RMS = 0.11; // moderate reference level (~-19 dBFS) for consistent DSP coloration
+const MAX_INPUT_GAIN = 4.0; // +12dB ceiling, protects quiet recordings from noise-floor amplification
+const MIN_INPUT_GAIN = 0.25; // -12dB floor, protects hot masters from being crushed too far
+
+// Normalizes every track to the same working level BEFORE saturation/EQ so the
+// lofi character sounds consistent whether the source is a quiet acoustic
+// recording or an already-loud, heavily mastered pop track.
+export function computeInputGain(loudness: LoudnessInfo): number {
+  if (loudness.rms <= 0.0001) return 1.0;
+
+  let gain = TARGET_RMS / loudness.rms;
+  gain = Math.max(MIN_INPUT_GAIN, Math.min(MAX_INPUT_GAIN, gain));
+
+  // Safety: never let the compensated peak get close to clipping before it
+  // even reaches the saturation stage.
+  const projectedPeak = loudness.peak * gain;
+  if (projectedPeak > 0.98) {
+    gain *= 0.98 / projectedPeak;
+  }
+
+  return gain;
 }
 
 // Generate an elegant, warm exponential decay stereo impulse response buffer for lush spatial reverb
@@ -418,6 +485,9 @@ export class LofiAudioManager {
   private isBypassed: boolean = false;
   private filterNode: BiquadFilterNode | null = null;
   private saturationNode: WaveShaperNode | null = null;
+  private bitcrushNode: WaveShaperNode | null = null;
+  private inputGainNode: GainNode | null = null;
+  private inputGain: number = 1.0;
   private delayNode: DelayNode | null = null;
   private delayGainNode: GainNode | null = null;
   
@@ -504,6 +574,9 @@ export class LofiAudioManager {
   public setBuffer(buffer: AudioBuffer) {
     this.currentBuffer = buffer;
     this.pauseOffset = 0;
+    // Normalize incoming loudness so the DSP chain colors every track
+    // consistently instead of barely touching quiet masters and overdriving hot ones.
+    this.inputGain = computeInputGain(analyzeLoudness(buffer));
   }
 
   public getBuffer() {
@@ -654,6 +727,10 @@ export class LofiAudioManager {
     this.saturationNode.curve = getSaturationCurve(preset.saturationDrive);
     this.saturationNode.oversample = '4x';
 
+    // 1b. Bit-depth crunch (quantization) — makes the preset's bitDepth audible
+    this.bitcrushNode = this.ctx.createWaveShaper();
+    this.bitcrushNode.curve = getBitcrushCurve(preset.bitDepth);
+
     // 2. Stereo Width Controller (Split Left & Right, cross-mix)
     const splitter = this.ctx.createChannelSplitter(2);
     const merger = this.ctx.createChannelMerger(2);
@@ -741,7 +818,11 @@ export class LofiAudioManager {
     this.vocalPitchShifter = new TimeDomainPitchShifter(this.ctx);
     this.vocalPitchShifter.setPitch(this.vocalMode === 'off' ? 0 : this.vocalPitchShift);
 
-    this.sourceNode.connect(this.vocalLowPeakingNode);
+    this.inputGainNode = this.ctx.createGain();
+    this.inputGainNode.gain.value = this.inputGain;
+
+    this.sourceNode.connect(this.inputGainNode);
+    this.inputGainNode.connect(this.vocalLowPeakingNode);
     this.vocalLowPeakingNode.connect(this.vocalHighPeakingNode);
     this.vocalHighPeakingNode.connect(this.vocalAirShelfNode);
     this.vocalAirShelfNode.connect(this.vocalPitchShifter.input);
@@ -754,7 +835,8 @@ export class LofiAudioManager {
     this.micConvolverNode.connect(this.micWetGainNode);
     this.micWetGainNode.connect(this.saturationNode);
 
-    this.saturationNode.connect(splitter);
+    this.saturationNode.connect(this.bitcrushNode);
+    this.bitcrushNode.connect(splitter);
 
     // Split Left/Right and cross mix
     splitter.connect(this.widthLeftGain1, 0); // Left channel out
@@ -875,11 +957,11 @@ export class LofiAudioManager {
 
     // 8. Brick-Wall Limiter Node to prevent digital clipping
     this.limiterNode = this.ctx.createDynamicsCompressor();
-    this.limiterNode.threshold.value = -0.5; // dB
-    this.limiterNode.knee.value = 0.0;
+    this.limiterNode.threshold.value = -1.0; // dB, extra headroom now input is normalized
+    this.limiterNode.knee.value = 6.0; // soft knee avoids audible pumping on transients
     this.limiterNode.ratio.value = 20.0;
-    this.limiterNode.attack.value = 0.003;
-    this.limiterNode.release.value = 0.1;
+    this.limiterNode.attack.value = 0.005;
+    this.limiterNode.release.value = 0.12;
 
     // Connect Main Gain through Limiter to Analyser and Destination
     this.mainGain.connect(this.limiterNode);
@@ -941,6 +1023,14 @@ export class LofiAudioManager {
         this.flutterOsc.stop();
         this.flutterOsc.disconnect();
         this.flutterOsc = null;
+      }
+      if (this.bitcrushNode) {
+        this.bitcrushNode.disconnect();
+        this.bitcrushNode = null;
+      }
+      if (this.inputGainNode) {
+        this.inputGainNode.disconnect();
+        this.inputGainNode = null;
       }
       if (this.crackleSource) {
         this.crackleSource.stop();
@@ -1119,6 +1209,11 @@ export class LofiAudioManager {
           this.micDryGainNode.gain.setTargetAtTime(micDry, t, 0.05);
         }
         break;
+      case 'bitDepth':
+        if (this.bitcrushNode) {
+          this.bitcrushNode.curve = getBitcrushCurve(value);
+        }
+        break;
     }
   }
 
@@ -1212,6 +1307,12 @@ export async function renderLofiAudio(
   source.buffer = buffer;
   source.playbackRate.value = totalRate;
 
+  // Normalize loudness so exported renders match the live preview's consistency
+  const loudness = analyzeLoudness(buffer);
+  const inputGain = computeInputGain(loudness);
+  const inputGainNode = offlineCtx.createGain();
+  inputGainNode.gain.value = inputGain;
+
   const mainGain = offlineCtx.createGain();
   mainGain.gain.value = 1.0;
 
@@ -1219,6 +1320,10 @@ export async function renderLofiAudio(
   const saturationNode = offlineCtx.createWaveShaper();
   saturationNode.curve = getSaturationCurve(preset.saturationDrive);
   saturationNode.oversample = '4x';
+
+  // 1b. Bit-depth crunch (quantization)
+  const bitcrushNode = offlineCtx.createWaveShaper();
+  bitcrushNode.curve = getBitcrushCurve(preset.bitDepth);
 
   // 2. Width crossmixer
   const splitter = offlineCtx.createChannelSplitter(2);
@@ -1346,7 +1451,8 @@ export async function renderLofiAudio(
   micWetGain.gain.value = micWet;
   micDryGain.gain.value = micDry;
 
-  source.connect(vLow);
+  source.connect(inputGainNode);
+  inputGainNode.connect(vLow);
   vLow.connect(vHigh);
   vHigh.connect(vAir);
 
@@ -1365,7 +1471,8 @@ export async function renderLofiAudio(
   micConvolver.connect(micWetGain);
   micWetGain.connect(saturationNode);
 
-  saturationNode.connect(splitter);
+  saturationNode.connect(bitcrushNode);
+  bitcrushNode.connect(splitter);
 
   splitter.connect(wL1, 0);
   splitter.connect(wL2, 0);
@@ -1448,11 +1555,11 @@ export async function renderLofiAudio(
 
   // Brick-wall limiter to prevent digital clipping in exported files
   const limiterNode = offlineCtx.createDynamicsCompressor();
-  limiterNode.threshold.value = -0.5; // dB
-  limiterNode.knee.value = 0.0;
+  limiterNode.threshold.value = -1.0; // dB, extra headroom now input is normalized
+  limiterNode.knee.value = 6.0; // soft knee avoids audible pumping on transients
   limiterNode.ratio.value = 20.0;
-  limiterNode.attack.value = 0.003;
-  limiterNode.release.value = 0.1;
+  limiterNode.attack.value = 0.005;
+  limiterNode.release.value = 0.12;
 
   mainGain.connect(limiterNode);
   limiterNode.connect(offlineCtx.destination);
