@@ -270,6 +270,99 @@ function normalizeBuffer(buffer: AudioBuffer) {
   }
 }
 
+export interface VocalGenderEstimate {
+  gender: 'female' | 'male' | 'unknown';
+  medianF0: number | null;
+  voicedRatio: number;
+}
+
+// Estimates whether the dominant vocal is female or male by tracking the
+// fundamental frequency of the center (mid) signal, where lead vocals are
+// typically panned. Heuristic: female vocals cluster around 165-255Hz,
+// male around 85-155Hz. Works on typical mixes; callers should keep a
+// manual override since instrumental-heavy tracks can fool it.
+export function detectVocalGender(buffer: AudioBuffer): VocalGenderEstimate {
+  const numChannels = buffer.numberOfChannels;
+  const srcRate = buffer.sampleRate;
+  const decimate = 4; // ~11kHz analysis rate is plenty for F0 <= 400Hz
+  const sr = srcRate / decimate;
+  const maxSeconds = 60;
+  const totalSamples = Math.min(buffer.length, srcRate * maxSeconds);
+  const monoLen = Math.floor(totalSamples / decimate);
+  if (monoLen < sr) return { gender: 'unknown', medianF0: null, voicedRatio: 0 };
+
+  const chans: Float32Array[] = [];
+  for (let c = 0; c < numChannels; c++) chans.push(buffer.getChannelData(c));
+
+  // Mid (center) mix with a one-pole highpass (~70Hz) to keep sub-bass from
+  // dominating the periodicity estimate.
+  const mono = new Float32Array(monoLen);
+  const rc = 1 / (2 * Math.PI * 70);
+  const dt = 1 / sr;
+  const alpha = rc / (rc + dt);
+  let prevX = 0;
+  let prevY = 0;
+  for (let i = 0; i < monoLen; i++) {
+    let sum = 0;
+    const idx = i * decimate;
+    for (let c = 0; c < numChannels; c++) sum += chans[c][idx];
+    const x = sum / numChannels;
+    const y = alpha * (prevY + x - prevX);
+    prevX = x;
+    prevY = y;
+    mono[i] = y;
+  }
+
+  const windowSize = 1024;
+  const hop = 512;
+  const minLag = Math.floor(sr / 400); // 400Hz ceiling
+  const maxLag = Math.ceil(sr / 85);   // 85Hz floor
+  const freqs: number[] = [];
+  let windowCount = 0;
+
+  for (let start = 0; start + windowSize + maxLag < monoLen; start += hop) {
+    windowCount++;
+
+    let r0 = 0;
+    for (let i = 0; i < windowSize; i++) {
+      const v = mono[start + i];
+      r0 += v * v;
+    }
+    const rms = Math.sqrt(r0 / windowSize);
+    if (rms < 0.01 || r0 <= 0) continue; // skip silence / near-silence
+
+    let bestLag = -1;
+    let bestCorr = 0;
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      let sum = 0;
+      for (let i = 0; i < windowSize; i++) {
+        sum += mono[start + i] * mono[start + i + lag];
+      }
+      if (sum > bestCorr) {
+        bestCorr = sum;
+        bestLag = lag;
+      }
+    }
+
+    // Only trust strongly periodic windows (voiced speech/singing)
+    if (bestLag > 0 && bestCorr / r0 > 0.55) {
+      freqs.push(sr / bestLag);
+    }
+  }
+
+  const voicedRatio = windowCount > 0 ? freqs.length / windowCount : 0;
+  if (freqs.length < 10) return { gender: 'unknown', medianF0: null, voicedRatio };
+
+  freqs.sort((a, b) => a - b);
+  const medianF0 = freqs[Math.floor(freqs.length / 2)];
+
+  let gender: 'female' | 'male' | 'unknown' = 'unknown';
+  if (medianF0 >= 165) gender = 'female';
+  else if (medianF0 <= 145) gender = 'male';
+
+  return { gender, medianF0, voicedRatio };
+}
+
 // Time-Domain Overlap-Add Pitch Shifter using complementary linear delay crossfades
 export class TimeDomainPitchShifter {
   private ctx: BaseAudioContext;

@@ -14,7 +14,7 @@ import {
   TrendingDown,
   UserRound
 } from 'lucide-react';
-import { TimeDomainPitchShifter } from '../audioEngine';
+import { TimeDomainPitchShifter, detectVocalGender } from '../audioEngine';
 
 // Slowing playback drops pitch AND formants together (like a tape running
 // slow) - this is what makes a slowed female vocal start reading as male.
@@ -71,6 +71,9 @@ export default function SlowedReverb() {
   // (classic deep tape-slowdown character).
   const [vocalPitchLift, setVocalPitchLift] = useState(100);
   const [voiceType, setVoiceType] = useState<'female' | 'male' | 'custom'>('female');
+  // 'female'/'male' = confident auto-detection; 'unknown' = couldn't tell
+  // (defaults to female); null = no file analyzed yet
+  const [detectedVoice, setDetectedVoice] = useState<'female' | 'male' | 'unknown' | null>(null);
 
   const selectVoiceType = (type: 'female' | 'male') => {
     setVoiceType(type);
@@ -180,6 +183,15 @@ export default function SlowedReverb() {
       const decodedBuffer = await audioCtxRef.current.decodeAudioData(arrayBuffer);
       setAudioBuffer(decodedBuffer);
       setDuration(decodedBuffer.duration);
+
+      // Auto-detect the singer's voice so the pitch handling defaults to the
+      // right behavior — user can still override with the voice buttons.
+      const estimate = detectVocalGender(decodedBuffer);
+      setDetectedVoice(estimate.gender);
+      // Unknown defaults to female: restoring pitch is the safer choice
+      // (a wrongly-deepened female voice is the common complaint).
+      selectVoiceType(estimate.gender === 'male' ? 'male' : 'female');
+
       setIsProcessing(false);
     } catch (err) {
       console.error(err);
@@ -845,6 +857,19 @@ export default function SlowedReverb() {
                 </span>
               </div>
 
+              {detectedVoice && (
+                <div className={`text-[10px] font-mono px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 ${
+                  detectedVoice === 'unknown'
+                    ? 'bg-[#141210] border-[#3d342b] text-[#a39785]'
+                    : 'bg-emerald-950/30 border-emerald-800/40 text-emerald-400'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${detectedVoice === 'unknown' ? 'bg-[#8c7f6d]' : 'bg-emerald-400 animate-pulse'}`} />
+                  {detectedVoice === 'female' && 'AUTO-DETECTED: FEMALE VOICE — tap a button below if this is wrong'}
+                  {detectedVoice === 'male' && 'AUTO-DETECTED: MALE VOICE — tap a button below if this is wrong'}
+                  {detectedVoice === 'unknown' && "COULDN'T AUTO-DETECT THE VOICE — defaulted to FEMALE, tap to change"}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => selectVoiceType('female')}
@@ -886,7 +911,7 @@ export default function SlowedReverb() {
                 <span>100% (Original Voice)</span>
               </div>
               <p className="text-[10px] text-[#746957] leading-normal font-sans">
-                Slowing a song drags the voice down with it — a female singer can end up sounding male. Pick who's singing: FEMALE restores her real voice while the tempo stays slowed; MALE keeps the classic deep drop.
+                Slowing a song drags the voice down with it — a female singer can end up sounding male. The tool listens to your track and picks the right mode automatically; correct it with the buttons if the guess is wrong. FEMALE restores her real voice while the tempo stays slowed; MALE keeps the classic deep drop.
               </p>
             </div>
 

@@ -159,7 +159,8 @@
         { "q": "How do I make a slowed and reverb edit?", "a": "Slow the track to roughly 80–85% of its original speed and add generous reverb — the tool above does both with two sliders and exports the result in seconds." },
         { "q": "What speed is 'slowed and reverb' usually?", "a": "Most popular edits slow the song to between 75% and 90% of the original tempo, with 80–85% being the sweet spot for the classic sound." },
         { "q": "Can I upload my edits to YouTube or TikTok?", "a": "The effect itself is royalty-free, but the original song's copyright still applies — use music you have rights to, or expect platform content-ID matching on commercial tracks." },
-        { "q": "Why does slowing a song change its pitch?", "a": "Classic slowed edits lower pitch together with speed — that deep, heavy character is part of the aesthetic. It mimics playing a record or tape below its normal speed." }
+        { "q": "Why does slowing a song change its pitch?", "a": "Classic slowed edits lower pitch together with speed — that deep, heavy character is part of the aesthetic. It mimics playing a record or tape below its normal speed." },
+        { "q": "Why does a slowed song make a female voice sound male?", "a": "Slowing playback drags the singer's pitch and vocal character down together, which can push a female voice into male-sounding range. This tool automatically detects the singer's voice and restores a female vocal to her real pitch while keeping the slowed tempo — with Female/Male buttons to override the detection." }
       ]
     },
     {
