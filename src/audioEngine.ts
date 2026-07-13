@@ -321,12 +321,14 @@ export class TimeDomainPitchShifter {
     this.gain1Mod.gain.value = 0.0175;
     this.gain2Mod.gain.value = 0.0175;
 
-    // Crossfade windows
+    // Crossfade windows — raised-cosine (Hann) rather than a linear triangle.
+    // A linear crossfade has a discontinuous derivative at its peak, which is
+    // audible as a "zipper"/robotic warble; the smooth cosine shape removes it.
     this.gain1Shaper = ctx.createWaveShaper();
     const curve1 = new Float32Array(1024);
     for (let i = 0; i < 1024; i++) {
       const x = (i / 1023) * 2 - 1;
-      curve1[i] = 1.0 - Math.abs(x);
+      curve1[i] = 0.5 * (1 + Math.cos(x * Math.PI));
     }
     this.gain1Shaper.curve = curve1;
 
@@ -334,7 +336,7 @@ export class TimeDomainPitchShifter {
     const curve2 = new Float32Array(1024);
     for (let i = 0; i < 1024; i++) {
       const x = (i / 1023) * 2 - 1;
-      curve2[i] = Math.abs(x);
+      curve2[i] = 0.5 * (1 - Math.cos(x * Math.PI));
     }
     this.gain2Shaper.curve = curve2;
 
@@ -378,7 +380,10 @@ export class TimeDomainPitchShifter {
     }
 
     const s = Math.pow(2, semitones / 12);
-    const tSweep = 0.035; // 35ms total sweep
+    // Narrower sweep (was 35ms) shortens the delay distance between the two
+    // crossfading taps, reducing the comb-filtering/"robotic" coloration that
+    // is most audible on harmonically rich material like vocals.
+    const tSweep = 0.028;
     const fLfo = Math.abs(1 - s) / tSweep;
 
     // Clip frequency to reasonable ranges to prevent instability
@@ -386,7 +391,7 @@ export class TimeDomainPitchShifter {
     this.modOsc.frequency.value = targetFreq;
 
     // If pitching up (semitones > 0), sweep needs to be descending (invert sawtooth)
-    const sweepDepth = semitones > 0 ? -0.0175 : 0.0175;
+    const sweepDepth = semitones > 0 ? -(tSweep / 2) : tSweep / 2;
     this.gain1Mod.gain.value = sweepDepth;
     this.gain2Mod.gain.value = sweepDepth;
   }
@@ -663,29 +668,31 @@ export class LofiAudioManager {
         this.vocalHighPeakingNode.gain.setTargetAtTime(0, t, 0.1);
         this.vocalAirShelfNode.gain.setTargetAtTime(0, t, 0.1);
       } else if (this.vocalMode === 'female-to-male') {
-        // Deep masculine chest resonance (boost low frequencies, cut sibilance)
+        // Deep masculine chest resonance (boost low frequencies, cut sibilance).
+        // Slightly stronger than before to compensate for the reduced raw pitch
+        // shift (7 -> 5 semitones), which was lowered to reduce shifter artifacts.
         this.vocalLowPeakingNode.frequency.setTargetAtTime(140, t, 0.1);
         this.vocalLowPeakingNode.Q.setTargetAtTime(1.0, t, 0.1);
-        this.vocalLowPeakingNode.gain.setTargetAtTime(9.0, t, 0.1);
+        this.vocalLowPeakingNode.gain.setTargetAtTime(10.0, t, 0.1);
 
         this.vocalHighPeakingNode.frequency.setTargetAtTime(3000, t, 0.1);
         this.vocalHighPeakingNode.Q.setTargetAtTime(0.8, t, 0.1);
-        this.vocalHighPeakingNode.gain.setTargetAtTime(-9.0, t, 0.1);
+        this.vocalHighPeakingNode.gain.setTargetAtTime(-10.0, t, 0.1);
 
         this.vocalAirShelfNode.frequency.setTargetAtTime(8000, t, 0.1);
-        this.vocalAirShelfNode.gain.setTargetAtTime(-5.0, t, 0.1);
+        this.vocalAirShelfNode.gain.setTargetAtTime(-6.0, t, 0.1);
       } else if (this.vocalMode === 'male-to-female') {
         // Clear breathy feminine presence (high presence boost, low muddy resonance cut)
         this.vocalLowPeakingNode.frequency.setTargetAtTime(180, t, 0.1);
         this.vocalLowPeakingNode.Q.setTargetAtTime(1.5, t, 0.1);
-        this.vocalLowPeakingNode.gain.setTargetAtTime(-10.0, t, 0.1);
+        this.vocalLowPeakingNode.gain.setTargetAtTime(-11.0, t, 0.1);
 
         this.vocalHighPeakingNode.frequency.setTargetAtTime(3200, t, 0.1);
         this.vocalHighPeakingNode.Q.setTargetAtTime(1.2, t, 0.1);
-        this.vocalHighPeakingNode.gain.setTargetAtTime(8.0, t, 0.1);
+        this.vocalHighPeakingNode.gain.setTargetAtTime(9.0, t, 0.1);
 
         this.vocalAirShelfNode.frequency.setTargetAtTime(8000, t, 0.1);
-        this.vocalAirShelfNode.gain.setTargetAtTime(5.0, t, 0.1);
+        this.vocalAirShelfNode.gain.setTargetAtTime(6.0, t, 0.1);
       }
     }
   }
@@ -1418,25 +1425,25 @@ export async function renderLofiAudio(
   if (vocalMode === 'female-to-male') {
     vLow.frequency.value = 140;
     vLow.Q.value = 1.0;
-    vLow.gain.value = 9.0;
+    vLow.gain.value = 10.0;
 
     vHigh.frequency.value = 3000;
     vHigh.Q.value = 0.8;
-    vHigh.gain.value = -9.0;
+    vHigh.gain.value = -10.0;
 
     vAir.frequency.value = 8000;
-    vAir.gain.value = -5.0;
+    vAir.gain.value = -6.0;
   } else if (vocalMode === 'male-to-female') {
     vLow.frequency.value = 180;
     vLow.Q.value = 1.5;
-    vLow.gain.value = -10.0;
+    vLow.gain.value = -11.0;
 
     vHigh.frequency.value = 3200;
     vHigh.Q.value = 1.2;
-    vHigh.gain.value = 8.0;
+    vHigh.gain.value = 9.0;
 
     vAir.frequency.value = 8000;
-    vAir.gain.value = 5.0;
+    vAir.gain.value = 6.0;
   }
 
   // Connect Main Source Graph through vocal filters and offline Vintage Microphone convolver

@@ -266,9 +266,9 @@ export default function App() {
   const handleVocalModeChange = (mode: 'off' | 'female-to-male' | 'male-to-female') => {
     setVocalMode(mode);
     if (mode === 'female-to-male') {
-      setVocalPitchShift(-7);
+      setVocalPitchShift(-5);
     } else if (mode === 'male-to-female') {
-      setVocalPitchShift(7);
+      setVocalPitchShift(5);
     } else {
       setVocalPitchShift(0);
     }
