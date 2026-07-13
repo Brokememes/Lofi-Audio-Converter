@@ -1,18 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Play, 
-  Pause, 
-  Volume2, 
-  Download, 
-  Trash2, 
-  Sliders, 
-  Activity, 
+import {
+  Play,
+  Pause,
+  Volume2,
+  Download,
+  Trash2,
+  Sliders,
+  Activity,
   Music,
   Gauge,
   Sparkles,
   RefreshCw,
-  TrendingDown
+  TrendingDown,
+  UserRound
 } from 'lucide-react';
+import { TimeDomainPitchShifter } from '../audioEngine';
+
+// Slowing playback drops pitch AND formants together (like a tape running
+// slow) - this is what makes a slowed female vocal start reading as male.
+// This computes how many semitones a given speed% drops the pitch by.
+function getSpeedInducedSemitoneDrop(speedPercent: number): number {
+  return 12 * Math.log2(speedPercent / 100);
+}
 
 // Create a high-quality programmatic impulse response for spacious reverb
 function createReverbImpulseResponse(ctx: BaseAudioContext, duration: number, decay: number): AudioBuffer {
@@ -56,10 +65,16 @@ export default function SlowedReverb() {
   const [highCut, setHighCut] = useState(4000); // 1000Hz to 20000Hz
   const [bassBoost, setBassBoost] = useState(6); // 0dB to 15dB
   const [volume, setVolume] = useState(80);
+  // Restores some of the pitch/formant drop that slowing playback causes, so
+  // vocals (especially female ones) don't read as a different gender. 0% =
+  // full vari-speed drop (classic tape-slowdown character), 100% = fully
+  // corrected pitch (keeps only the tempo change).
+  const [vocalPitchLift, setVocalPitchLift] = useState(50);
 
   // Audio nodes and context refs
   const audioCtxRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
+  const pitchShifterRef = useRef<TimeDomainPitchShifter | null>(null);
   const reverbNodeRef = useRef<ConvolverNode | null>(null);
   const dryGainRef = useRef<GainNode | null>(null);
   const wetGainRef = useRef<GainNode | null>(null);
@@ -95,6 +110,12 @@ export default function SlowedReverb() {
       sourceNodeRef.current.playbackRate.setTargetAtTime(speed / 100, t, 0.1);
     }
 
+    // 1b. Vocal pitch lift compensation
+    if (pitchShifterRef.current) {
+      const drop = getSpeedInducedSemitoneDrop(speed);
+      pitchShifterRef.current.setPitch(-drop * (vocalPitchLift / 100));
+    }
+
     // 2. Reverb mix
     const mix = reverbMix / 100;
     if (dryGainRef.current && wetGainRef.current) {
@@ -116,7 +137,7 @@ export default function SlowedReverb() {
     if (masterGainRef.current) {
       masterGainRef.current.gain.setTargetAtTime(volume / 100, t, 0.05);
     }
-  }, [speed, reverbMix, highCut, bassBoost, volume]);
+  }, [speed, reverbMix, highCut, bassBoost, volume, vocalPitchLift]);
 
   // Handle live reverb buffer generation when size changes
   useEffect(() => {
@@ -181,6 +202,13 @@ export default function SlowedReverb() {
     source.buffer = audioBuffer;
     sourceNodeRef.current = source;
 
+    // Vocal pitch lift: restores some of the pitch/formant drop caused by
+    // slowing playback, applied after the slowdown so tempo is unaffected.
+    const pitchShifter = new TimeDomainPitchShifter(ctx);
+    const speedDrop = getSpeedInducedSemitoneDrop(speed);
+    pitchShifter.setPitch(-speedDrop * (vocalPitchLift / 100));
+    pitchShifterRef.current = pitchShifter;
+
     // Reverb Node
     const reverb = ctx.createConvolver();
     reverb.buffer = createReverbImpulseResponse(ctx, reverbSize, 2.5);
@@ -217,8 +245,9 @@ export default function SlowedReverb() {
     analyserRef.current = analyser;
 
     // Connections:
-    // Source -> Bass Boost -> Lowpass Filter
-    source.connect(bassBoostNode);
+    // Source -> Vocal Pitch Lift -> Bass Boost -> Lowpass Filter
+    source.connect(pitchShifter.input);
+    pitchShifter.output.connect(bassBoostNode);
     bassBoostNode.connect(filter);
 
     // Split after lowpass filter into dry & reverb path
@@ -255,6 +284,8 @@ export default function SlowedReverb() {
     try { sourceNodeRef.current.stop(); } catch (e) {}
     sourceNodeRef.current.disconnect();
     sourceNodeRef.current = null;
+    pitchShifterRef.current?.disconnect();
+    pitchShifterRef.current = null;
     setIsPlaying(false);
 
     if (animationFrameRef.current) {
@@ -266,6 +297,8 @@ export default function SlowedReverb() {
     try { sourceNodeRef.current?.stop(); } catch (e) {}
     sourceNodeRef.current?.disconnect();
     sourceNodeRef.current = null;
+    pitchShifterRef.current?.disconnect();
+    pitchShifterRef.current = null;
     setIsPlaying(false);
     pausedTimeRef.current = 0;
     setCurrentTime(0);
@@ -416,6 +449,11 @@ export default function SlowedReverb() {
       const source = offlineCtx.createBufferSource();
       source.buffer = audioBuffer;
 
+      // Vocal pitch lift: matches the live preview's formant/pitch restoration
+      const pitchShifter = new TimeDomainPitchShifter(offlineCtx);
+      const speedDrop = getSpeedInducedSemitoneDrop(speed);
+      pitchShifter.setPitch(-speedDrop * (vocalPitchLift / 100));
+
       // Reverb Convolver Node
       const reverb = offlineCtx.createConvolver();
       reverb.buffer = createReverbImpulseResponse(offlineCtx, reverbSize, 2.5);
@@ -442,7 +480,8 @@ export default function SlowedReverb() {
       masterGain.gain.value = volume / 100;
 
       // Connect Graph
-      source.connect(bassBoostNode);
+      source.connect(pitchShifter.input);
+      pitchShifter.output.connect(bassBoostNode);
       bassBoostNode.connect(filter);
       
       filter.connect(dryGain);
@@ -784,6 +823,35 @@ export default function SlowedReverb() {
                 <span>0.85x (Default Ideal)</span>
                 <span>1.00x (Original)</span>
               </div>
+            </div>
+
+            {/* VOCAL PITCH LIFT SLIDER */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-mono font-bold text-white flex items-center gap-1">
+                  <UserRound className="w-3.5 h-3.5 text-amber-500" />
+                  VOCAL PITCH LIFT
+                </label>
+                <span className="text-xs font-mono text-amber-500 font-bold bg-amber-950/40 border border-amber-900/30 px-2 py-0.5 rounded">
+                  {vocalPitchLift}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={vocalPitchLift}
+                onChange={(e) => setVocalPitchLift(Number(e.target.value))}
+                className="w-full accent-amber-600 bg-[#141210] h-1.5 rounded-full appearance-none cursor-pointer"
+              />
+              <div className="flex justify-between text-[10px] text-[#8c7f6d] font-mono">
+                <span>0% (Raw Tape Drop)</span>
+                <span>50% (Balanced)</span>
+                <span>100% (Vocal Preserved)</span>
+              </div>
+              <p className="text-[10px] text-[#746957] leading-normal font-sans">
+                Slowing playback drops pitch and vocal character together — this can make a voice read as a different gender. Raise this to restore some of that character without undoing the slowed tempo.
+              </p>
             </div>
 
             {/* REVERB MIX SLIDER */}
