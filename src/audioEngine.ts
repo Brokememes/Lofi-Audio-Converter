@@ -108,6 +108,15 @@ export function analyzeLoudness(buffer: AudioBuffer): LoudnessInfo {
   return { peak, rms };
 }
 
+// Noise texture scaling: kept deliberately subtle. These were 0.25/0.08,
+// which read as "ugly grain" once input normalization made music quieter
+// relative to the fixed-level noise beds.
+export const CRACKLE_GAIN_SCALE = 0.09;
+export const HISS_GAIN_SCALE = 0.03;
+// Gentle post-mix makeup gain into the soft-knee limiter for a polished,
+// present output level closer to published lofi edits.
+export const OUTPUT_MAKEUP_GAIN = 1.3;
+
 const TARGET_RMS = 0.11; // moderate reference level (~-19 dBFS) for consistent DSP coloration
 const MAX_INPUT_GAIN = 4.0; // +12dB ceiling, protects quiet recordings from noise-floor amplification
 const MIN_INPUT_GAIN = 0.25; // -12dB floor, protects hot masters from being crushed too far
@@ -1047,7 +1056,7 @@ export class LofiAudioManager {
     this.crackleSource.loop = true;
     
     this.crackleGain = this.ctx.createGain();
-    this.crackleGain.gain.value = (preset.crackleLevel / 100) * 0.25; // moderate volume clamp
+    this.crackleGain.gain.value = (preset.crackleLevel / 100) * CRACKLE_GAIN_SCALE;
     
     this.crackleSource.connect(this.crackleGain);
     this.crackleGain.connect(this.mainGain);
@@ -1065,7 +1074,7 @@ export class LofiAudioManager {
     this.hissFilter.Q.value = 1.0;
     
     this.hissGain = this.ctx.createGain();
-    this.hissGain.gain.value = (preset.hissLevel / 100) * 0.08; // quiet baseline hiss
+    this.hissGain.gain.value = (preset.hissLevel / 100) * HISS_GAIN_SCALE;
 
     this.hissSource.connect(this.hissFilter);
     this.hissFilter.connect(this.hissGain);
@@ -1080,8 +1089,11 @@ export class LofiAudioManager {
     this.limiterNode.attack.value = 0.005;
     this.limiterNode.release.value = 0.12;
 
-    // Connect Main Gain through Limiter to Analyser and Destination
-    this.mainGain.connect(this.limiterNode);
+    // Connect Main Gain through makeup gain and Limiter to Analyser and Destination
+    const makeupGain = this.ctx.createGain();
+    makeupGain.gain.value = OUTPUT_MAKEUP_GAIN;
+    this.mainGain.connect(makeupGain);
+    makeupGain.connect(this.limiterNode);
 
     // Bypass Path (Dry Original)
     this.bypassGainNode = this.ctx.createGain();
@@ -1270,12 +1282,12 @@ export class LofiAudioManager {
         break;
       case 'crackleLevel':
         if (this.crackleGain) {
-          this.crackleGain.gain.setTargetAtTime((value / 100) * 0.25, this.ctx.currentTime, 0.1);
+          this.crackleGain.gain.setTargetAtTime((value / 100) * CRACKLE_GAIN_SCALE, this.ctx.currentTime, 0.1);
         }
         break;
       case 'hissLevel':
         if (this.hissGain) {
-          this.hissGain.gain.setTargetAtTime((value / 100) * 0.08, this.ctx.currentTime, 0.1);
+          this.hissGain.gain.setTargetAtTime((value / 100) * HISS_GAIN_SCALE, this.ctx.currentTime, 0.1);
         }
         break;
       case 'delayFeedback':
@@ -1497,7 +1509,7 @@ export async function renderLofiAudio(
   crackleSource.buffer = crackleBuf;
   crackleSource.loop = true;
   const crackleGain = offlineCtx.createGain();
-  crackleGain.gain.value = (preset.crackleLevel / 100) * 0.25;
+  crackleGain.gain.value = (preset.crackleLevel / 100) * CRACKLE_GAIN_SCALE;
 
   crackleSource.connect(crackleGain);
   crackleGain.connect(mainGain);
@@ -1512,7 +1524,7 @@ export async function renderLofiAudio(
   hissFilter.frequency.value = 1800;
   hissFilter.Q.value = 1.0;
   const hissGain = offlineCtx.createGain();
-  hissGain.gain.value = (preset.hissLevel / 100) * 0.08;
+  hissGain.gain.value = (preset.hissLevel / 100) * HISS_GAIN_SCALE;
 
   hissSource.connect(hissFilter);
   hissFilter.connect(hissGain);
@@ -1687,7 +1699,10 @@ export async function renderLofiAudio(
   limiterNode.attack.value = 0.005;
   limiterNode.release.value = 0.12;
 
-  mainGain.connect(limiterNode);
+  const makeupGain = offlineCtx.createGain();
+  makeupGain.gain.value = OUTPUT_MAKEUP_GAIN;
+  mainGain.connect(makeupGain);
+  makeupGain.connect(limiterNode);
   limiterNode.connect(offlineCtx.destination);
 
   // Start all generators

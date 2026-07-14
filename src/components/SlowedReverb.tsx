@@ -62,7 +62,9 @@ export default function SlowedReverb() {
   const [speed, setSpeed] = useState(85); // 70% to 100%
   const [reverbMix, setReverbMix] = useState(45); // 0% to 100%
   const [reverbSize, setReverbSize] = useState(3.5); // 1.0s to 7.0s
-  const [highCut, setHighCut] = useState(4000); // 1000Hz to 20000Hz
+  // Default 20000 = bypassed: published slowed+reverb edits keep the full
+  // clean spectrum; muffling is opt-in via presets or the slider.
+  const [highCut, setHighCut] = useState(20000); // 1000Hz to 20000Hz
   const [bassBoost, setBassBoost] = useState(6); // 0dB to 15dB
   const [volume, setVolume] = useState(80);
   // Restores the pitch/formant drop that slowing playback causes, so vocals
@@ -421,25 +423,25 @@ export default function SlowedReverb() {
       setSpeed(80);
       setReverbMix(55);
       setReverbSize(4.5);
-      setHighCut(3200);
+      setHighCut(6500);
       setBassBoost(10);
     } else if (preset === 'tokyo') {
       setSpeed(88);
       setReverbMix(38);
       setReverbSize(3.0);
-      setHighCut(5500);
+      setHighCut(9000);
       setBassBoost(4);
     } else if (preset === 'ambient') {
       setSpeed(75);
       setReverbMix(75);
       setReverbSize(6.5);
-      setHighCut(2200);
+      setHighCut(4500);
       setBassBoost(8);
     } else if (preset === 'subwoofer') {
       setSpeed(82);
       setReverbMix(40);
       setReverbSize(3.5);
-      setHighCut(1800);
+      setHighCut(3500);
       setBassBoost(14);
     }
   };
