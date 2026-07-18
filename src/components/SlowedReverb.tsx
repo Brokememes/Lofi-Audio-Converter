@@ -23,28 +23,33 @@ function getSpeedInducedSemitoneDrop(speedPercent: number): number {
   return 12 * Math.log2(speedPercent / 100);
 }
 
-// Create a high-quality programmatic impulse response for spacious reverb
+// Create a high-quality programmatic impulse response for spacious reverb.
+// Includes ~12ms of pre-delay: the reverb starts a beat after the dry sound,
+// which keeps vocals clear and defined instead of instantly washed out —
+// the standard trick in published slowed+reverb edits.
 function createReverbImpulseResponse(ctx: BaseAudioContext, duration: number, decay: number): AudioBuffer {
   const sampleRate = ctx.sampleRate;
-  const length = sampleRate * duration;
+  const preDelaySamples = Math.floor(sampleRate * 0.012);
+  const tailLength = Math.floor(sampleRate * duration);
+  const length = preDelaySamples + tailLength;
   const impulse = ctx.createBuffer(2, length, sampleRate);
-  
+
   const left = impulse.getChannelData(0);
   const right = impulse.getChannelData(1);
-  
-  for (let i = 0; i < length; i++) {
-    const percent = i / length;
+
+  for (let i = preDelaySamples; i < length; i++) {
+    const percent = (i - preDelaySamples) / tailLength;
     // Exponential decay
     const l = (Math.random() * 2 - 1) * Math.pow(1 - percent, decay);
     // Slight phase difference for rich stereo width
     const r = (Math.random() * 2 - 1) * Math.pow(1 - percent, decay);
-    
+
     // High-frequency damping
     const damp = 1 - (percent * 0.5);
     left[i] = l * damp;
     right[i] = r * damp;
   }
-  
+
   return impulse;
 }
 
@@ -272,10 +277,21 @@ export default function SlowedReverb() {
     pitchShifter.output.connect(bassBoostNode);
     bassBoostNode.connect(filter);
 
-    // Split after lowpass filter into dry & reverb path
+    // Split after lowpass filter into dry & reverb path.
+    // The reverb send is highpassed (~170Hz) so bass and kick stay punchy
+    // instead of flooding the reverb with rumble, and the wet return is
+    // gently damped (~8.5kHz) so the tail is smooth, not sizzly.
     filter.connect(dryGain);
-    filter.connect(reverb);
-    reverb.connect(wetGain);
+    const reverbSendHP = ctx.createBiquadFilter();
+    reverbSendHP.type = 'highpass';
+    reverbSendHP.frequency.value = 170;
+    const reverbDampLP = ctx.createBiquadFilter();
+    reverbDampLP.type = 'lowpass';
+    reverbDampLP.frequency.value = 8500;
+    filter.connect(reverbSendHP);
+    reverbSendHP.connect(reverb);
+    reverb.connect(reverbDampLP);
+    reverbDampLP.connect(wetGain);
 
     // Combine paths to master gain -> analyser -> destination
     dryGain.connect(masterGain);
@@ -507,8 +523,16 @@ export default function SlowedReverb() {
       bassBoostNode.connect(filter);
       
       filter.connect(dryGain);
-      filter.connect(reverb);
-      reverb.connect(wetGain);
+      const reverbSendHP = offlineCtx.createBiquadFilter();
+      reverbSendHP.type = 'highpass';
+      reverbSendHP.frequency.value = 170;
+      const reverbDampLP = offlineCtx.createBiquadFilter();
+      reverbDampLP.type = 'lowpass';
+      reverbDampLP.frequency.value = 8500;
+      filter.connect(reverbSendHP);
+      reverbSendHP.connect(reverb);
+      reverb.connect(reverbDampLP);
+      reverbDampLP.connect(wetGain);
 
       dryGain.connect(masterGain);
       wetGain.connect(masterGain);

@@ -32,6 +32,8 @@ export default function VocalRemover() {
   const monoGainRef = useRef<GainNode | null>(null);
   const dryGainRef = useRef<GainNode | null>(null);
   const lowPassRef = useRef<BiquadFilterNode | null>(null);
+  const lowPass2Ref = useRef<BiquadFilterNode | null>(null);
+  const wetHighPassRef = useRef<BiquadFilterNode | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
@@ -52,27 +54,28 @@ export default function VocalRemover() {
     if (!audioCtxRef.current) return;
     const t = audioCtxRef.current.currentTime;
 
-    // Adjust Vocal Removal Balance
+    // Adjust Vocal Removal Balance.
+    // Wet path is the proper karaoke side signal 0.5*(L - R): cancels center
+    // content (lead vocals) at correct loudness. The cancellation is band-
+    // limited by a highpass so it never fights the bass-preserve path, and a
+    // separate high-frequency path restores cymbals/air that center
+    // cancellation would otherwise dull.
     const depth = vocalCutDepth / 100;
     if (leftGainRef.current && rightGainRef.current && dryGainRef.current && monoGainRef.current) {
-      // In center channel cancellation:
-      // Left_out = Left_dry + (Left_dry - Right_dry) * depth
-      // But we can do this more simply:
-      // To get Vocal-Removed (Karaoke):
-      // Left = original_L
-      // Right = original_R
-      // By combining: Mono = L - R, we cancel center.
-      // So wet path is: Mono (L - R)
-      // Dry path is: Original Stereo (L, R)
-      // We crossfade between pure dry (depth = 0) and pure wet mono (depth = 1)
-      leftGainRef.current.gain.setTargetAtTime(1.0, t, 0.05);
-      rightGainRef.current.gain.setTargetAtTime(-depth, t, 0.05); // inverted R combined into mono
+      leftGainRef.current.gain.setTargetAtTime(0.5, t, 0.05);
+      rightGainRef.current.gain.setTargetAtTime(-0.5, t, 0.05);
       monoGainRef.current.gain.setTargetAtTime(depth, t, 0.05);
       dryGainRef.current.gain.setTargetAtTime(1 - depth, t, 0.05);
     }
 
     if (lowPassRef.current) {
       lowPassRef.current.frequency.setTargetAtTime(lowPreserveFreq, t, 0.05);
+    }
+    if (lowPass2Ref.current) {
+      lowPass2Ref.current.frequency.setTargetAtTime(lowPreserveFreq, t, 0.05);
+    }
+    if (wetHighPassRef.current) {
+      wetHighPassRef.current.frequency.setTargetAtTime(lowPreserveFreq, t, 0.05);
     }
 
     if (masterGainRef.current) {
@@ -145,11 +148,35 @@ export default function VocalRemover() {
     rightGainRef.current = rightGain;
     monoGainRef.current = wetMonoGain;
 
-    // 4. Low-Bass Preservation Path (Keep sub-bass in stereo/original format)
+    // 4. Low-Bass Preservation Path (bass and kick live in the center too —
+    // keep everything below the crossover from the original mix)
     const lowPass = ctx.createBiquadFilter();
     lowPass.type = 'lowpass';
     lowPass.frequency.value = lowPreserveFreq;
     lowPassRef.current = lowPass;
+    // Cascaded second lowpass = 24dB/oct: without it, mid frequencies
+    // (including vocals) leak back in through the bass-preserve path.
+    const lowPass2 = ctx.createBiquadFilter();
+    lowPass2.type = 'lowpass';
+    lowPass2.frequency.value = lowPreserveFreq;
+    lowPass2Ref.current = lowPass2;
+    lowPass.connect(lowPass2);
+
+    // 4b. High-Air Preservation Path: cymbals, hats and "air" are largely
+    // center content that plain L-R cancellation destroys — restore them
+    // from the original mix above the vocal range.
+    const airHighPass = ctx.createBiquadFilter();
+    airHighPass.type = 'highpass';
+    airHighPass.frequency.value = 7500;
+    const airGain = ctx.createGain();
+    airGain.gain.value = 0.7;
+
+    // 4c. Band-limit the cancellation signal so it never overlaps the
+    // bass-preserve path (prevents low-end comb filtering/mud).
+    const wetHighPass = ctx.createBiquadFilter();
+    wetHighPass.type = 'highpass';
+    wetHighPass.frequency.value = lowPreserveFreq;
+    wetHighPassRef.current = wetHighPass;
 
     // 5. Dry Path (Original Stereo)
     const dryGain = ctx.createGain();
@@ -158,17 +185,18 @@ export default function VocalRemover() {
     // Connect Source to paths
     source.connect(splitter);
     source.connect(lowPass); // bass preservation
+    source.connect(airHighPass); // air/cymbal preservation
+    airHighPass.connect(airGain);
     source.connect(dryGain); // dry path
 
-    // Configure Wet cancellation path: L - R
-    // Left output of source goes to left gain
+    // Configure Wet cancellation path: 0.5*(L - R)
     splitter.connect(leftGain, 0);
-    // Right output of source goes to right gain
     splitter.connect(rightGain, 1);
 
-    // Sum both into wetMonoGain
-    leftGain.connect(wetMonoGain);
-    rightGain.connect(wetMonoGain); // Right gain has negative value (-depth), performing subtraction!
+    // Sum both into the highpass, then into wetMonoGain
+    leftGain.connect(wetHighPass);
+    rightGain.connect(wetHighPass); // rightGain is negative — performs subtraction
+    wetHighPass.connect(wetMonoGain);
 
     // Connect paths to Master Destination Merger
     // Wet Mono goes to both Left and Right of Master merger
@@ -180,8 +208,12 @@ export default function VocalRemover() {
     dryGain.connect(merger, 0, 1);
 
     // Low Bass bypass goes to merger
-    lowPass.connect(merger, 0, 0);
-    lowPass.connect(merger, 0, 1);
+    lowPass2.connect(merger, 0, 0);
+    lowPass2.connect(merger, 0, 1);
+
+    // High air bypass goes to merger
+    airGain.connect(merger, 0, 0);
+    airGain.connect(merger, 0, 1);
 
     // Master volume control
     const masterGain = ctx.createGain();
@@ -194,8 +226,8 @@ export default function VocalRemover() {
     // Set interactive initial parameters
     const t = ctx.currentTime;
     const depth = vocalCutDepth / 100;
-    leftGain.gain.setValueAtTime(1.0, t);
-    rightGain.gain.setValueAtTime(-depth, t);
+    leftGain.gain.setValueAtTime(0.5, t);
+    rightGain.gain.setValueAtTime(-0.5, t);
     wetMonoGain.gain.setValueAtTime(depth, t);
     dryGain.gain.setValueAtTime(1 - depth, t);
 
@@ -280,26 +312,43 @@ export default function VocalRemover() {
       const lowPass = offlineCtx.createBiquadFilter();
       lowPass.type = 'lowpass';
       lowPass.frequency.value = lowPreserveFreq;
+      const lowPass2 = offlineCtx.createBiquadFilter();
+      lowPass2.type = 'lowpass';
+      lowPass2.frequency.value = lowPreserveFreq;
+      lowPass.connect(lowPass2);
+
+      const airHighPass = offlineCtx.createBiquadFilter();
+      airHighPass.type = 'highpass';
+      airHighPass.frequency.value = 7500;
+      const airGain = offlineCtx.createGain();
+      airGain.gain.value = 0.7;
+
+      const wetHighPass = offlineCtx.createBiquadFilter();
+      wetHighPass.type = 'highpass';
+      wetHighPass.frequency.value = lowPreserveFreq;
 
       const dryGain = offlineCtx.createGain();
 
       // Configure gains exactly like real-time
       const depth = vocalCutDepth / 100;
-      leftGain.gain.setValueAtTime(1.0, 0);
-      rightGain.gain.setValueAtTime(-depth, 0);
+      leftGain.gain.setValueAtTime(0.5, 0);
+      rightGain.gain.setValueAtTime(-0.5, 0);
       wetMonoGain.gain.setValueAtTime(depth, 0);
       dryGain.gain.setValueAtTime(1 - depth, 0);
 
       // Connect Offline graph
       offlineSource.connect(splitter);
       offlineSource.connect(lowPass);
+      offlineSource.connect(airHighPass);
+      airHighPass.connect(airGain);
       offlineSource.connect(dryGain);
 
       splitter.connect(leftGain, 0);
       splitter.connect(rightGain, 1);
 
-      leftGain.connect(wetMonoGain);
-      rightGain.connect(wetMonoGain);
+      leftGain.connect(wetHighPass);
+      rightGain.connect(wetHighPass);
+      wetHighPass.connect(wetMonoGain);
 
       wetMonoGain.connect(merger, 0, 0);
       wetMonoGain.connect(merger, 0, 1);
@@ -307,8 +356,11 @@ export default function VocalRemover() {
       dryGain.connect(merger, 0, 0);
       dryGain.connect(merger, 0, 1);
 
-      lowPass.connect(merger, 0, 0);
-      lowPass.connect(merger, 0, 1);
+      lowPass2.connect(merger, 0, 0);
+      lowPass2.connect(merger, 0, 1);
+
+      airGain.connect(merger, 0, 0);
+      airGain.connect(merger, 0, 1);
 
       merger.connect(offlineCtx.destination);
 

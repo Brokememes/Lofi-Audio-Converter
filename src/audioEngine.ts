@@ -1057,8 +1057,15 @@ export class LofiAudioManager {
     
     this.crackleGain = this.ctx.createGain();
     this.crackleGain.gain.value = (preset.crackleLevel / 100) * CRACKLE_GAIN_SCALE;
-    
-    this.crackleSource.connect(this.crackleGain);
+
+    // Highpass the crackle at 500Hz so dust clicks read as vinyl texture
+    // without adding low-end rumble (standard lofi mixing practice).
+    const crackleHP = this.ctx.createBiquadFilter();
+    crackleHP.type = 'highpass';
+    crackleHP.frequency.value = 500;
+
+    this.crackleSource.connect(crackleHP);
+    crackleHP.connect(this.crackleGain);
     this.crackleGain.connect(this.mainGain);
     this.crackleSource.start();
 
@@ -1511,7 +1518,12 @@ export async function renderLofiAudio(
   const crackleGain = offlineCtx.createGain();
   crackleGain.gain.value = (preset.crackleLevel / 100) * CRACKLE_GAIN_SCALE;
 
-  crackleSource.connect(crackleGain);
+  const crackleHP = offlineCtx.createBiquadFilter();
+  crackleHP.type = 'highpass';
+  crackleHP.frequency.value = 500;
+
+  crackleSource.connect(crackleHP);
+  crackleHP.connect(crackleGain);
   crackleGain.connect(mainGain);
 
   // 7. Procedural Hiss Node
